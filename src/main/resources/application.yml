@@ -1,0 +1,6 @@
+server:
+  port: 8070
+  servlet:
+    context-path: /bigdata-study
+
+
