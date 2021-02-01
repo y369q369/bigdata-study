@@ -1,4 +1,4 @@
-package com.example.bigdatastudy.vo;
+package com.example.springbootApi.vo;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;

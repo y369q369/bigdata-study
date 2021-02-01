@@ -1,7 +1,6 @@
-package com.example.bigdatastudy.service;
+package com.example.springbootApi.service;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,8 +9,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.io.IOException;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ExtendWith(SpringExtension.class)
@@ -26,16 +23,10 @@ class HdfsServiceTest {
         Assertions.assertNotNull(fileSystem);
     }
 
-    @Test
-    void getHomeDirectory() throws IOException {
-        Path path = hdfsService.getHomeDirectory();
-        Assertions.assertNotNull(path);
-    }
-
-    @Test
-    void listStatus() throws IOException {
-        hdfsService.listStatus();
-    }
+//    @Test
+//    void listStatus() throws IOException {
+//        hdfsService.listStatus();
+//    }
 
 
 

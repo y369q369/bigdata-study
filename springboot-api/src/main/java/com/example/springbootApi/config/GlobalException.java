@@ -1,6 +1,6 @@
-package com.example.bigdatastudy.config;
+package com.example.springbootApi.config;
 
-import com.example.bigdatastudy.vo.ResponseVO;
+import com.example.springbootApi.vo.ResponseVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;

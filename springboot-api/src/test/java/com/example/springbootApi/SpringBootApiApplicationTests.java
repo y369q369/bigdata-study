@@ -1,10 +1,10 @@
-package com.example.bigdatastudy;
+package com.example.springbootApi;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class BigdataStudyApplicationTests {
+class SpringBootApiApplicationTests {
 
     @Test
     void contextLoads() {

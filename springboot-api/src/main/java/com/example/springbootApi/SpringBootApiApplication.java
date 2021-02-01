@@ -1,13 +1,13 @@
-package com.example.bigdatastudy;
+package com.example.springbootApi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class BigdataStudyApplication {
+public class SpringBootApiApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(BigdataStudyApplication.class, args);
+        SpringApplication.run(SpringBootApiApplication.class, args);
     }
 
 }
