@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +28,8 @@ public class HdfsService {
         System.setProperty("HADOOP_USER_NAME", "hadoop");
 
         Configuration configuration = new Configuration();
-        configuration.set("fs.defaultFS", "hdfs://192.168.72.133:9000");
+        configuration.set("fs.defaultFS", "hdfs://81.68.115.37:9000");
+//        configuration.set("fs.defaultFS", "hdfs://192.168.72.133:9000");
         FileSystem fs = FileSystem.get(configuration);
         return fs;
     }
@@ -43,6 +45,10 @@ public class HdfsService {
         FileStatus[] fileStatuses = fs.listStatus(path);
         for (FileStatus fileStatus : fileStatuses) {
             log.info("name:" + fileStatus.getPath().getName() + ", time: " + fileStatus.getModificationTime() + ", size:" + fileStatus.getLen());
+        }
+        Path[] fileList = FileUtil.stat2Paths(fileStatuses);
+        for (Path file: fileList) {
+            log.info("name:" + file.getName());
         }
         return fileStatuses;
     }
@@ -114,9 +120,9 @@ public class HdfsService {
 
     public static void main(String[] args) throws IOException {
         HdfsService hdfsService = new HdfsService();
-//        hdfsService.listStatus("hdfs://192.168.72.133:9000/test");
+        hdfsService.listStatus("hdfs://81.68.115.37:9000/");
 //        hdfsService.mkdir("hdfs://192.168.72.133:9000/test3/test3_test");
-        hdfsService.createFile("hdfs://192.168.72.133:9000/test2/test3/test.txt");
+//        hdfsService.createFile("hdfs://192.168.72.133:9000/test2/test3/test.txt");
 //        hdfsService.delete("hdfs://192.168.72.133:9000/test4");
 //        hdfsService.upload("C:\\Users\\grassprince\\Desktop\\test.txt", "hdfs://192.168.72.133:9000/test4/");
 //        hdfsService.download("hdfs://192.168.72.133:9000/test/test1.txt", "G:\\" );
