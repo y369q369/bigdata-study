@@ -11,7 +11,7 @@ import lombok.Data;
  **/
 @Data
 @ApiModel(value = "通用接口返回对象")
-public class ResponseVO {
+public class ResultVO {
 
     /** 返回状态 */
     @ApiModelProperty(required = true, notes = "返回状态", example = "true")
@@ -24,21 +24,21 @@ public class ResponseVO {
     /**
      * 成功
      */
-    public static ResponseVO success(Object message) {
-        ResponseVO responseVO = new ResponseVO();
-        responseVO.setStatus(true);
-        responseVO.setMessage(message);
-        return responseVO;
+    public static ResultVO success(Object message) {
+        ResultVO resultVO = new ResultVO();
+        resultVO.setStatus(true);
+        resultVO.setMessage(message);
+        return resultVO;
     }
 
     /**
      * 失败
      */
-    public static ResponseVO fail(Object message) {
-        ResponseVO responseVO = new ResponseVO();
-        responseVO.setStatus(false);
-        responseVO.setMessage(message);
-        return responseVO;
+    public static ResultVO fail(Object message) {
+        ResultVO resultVO = new ResultVO();
+        resultVO.setStatus(false);
+        resultVO.setMessage(message);
+        return resultVO;
     }
 
 }

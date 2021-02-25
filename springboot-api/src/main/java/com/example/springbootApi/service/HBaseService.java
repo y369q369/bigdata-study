@@ -1,6 +1,12 @@
 package com.example.springbootApi.service;
 
+import com.example.springbootApi.model.HBaseTableModel;
+import com.example.springbootApi.pojo.HBaseColumnPOJO;
+import com.example.springbootApi.pojo.HBaseInsertPOJO;
+import com.example.springbootApi.pojo.HBaseRowKeyPOJO;
 import com.example.springbootApi.utils.CommonUtil;
+import com.example.springbootApi.vo.HBaseTableVO;
+import com.example.springbootApi.vo.ResultVO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -22,7 +28,7 @@ import java.util.*;
  **/
 @Service
 @Slf4j
-public class HbaseService {
+public class HBaseService {
 
     public Configuration getConfiguration(){
         Configuration configuration = HBaseConfiguration.create();
@@ -58,17 +64,7 @@ public class HbaseService {
         return admin;
     }
 
-    /**
-     * 获取所有表
-     */
-    public List<TableDescriptor> getTableList() throws IOException {
-        Admin admin = getAdmin();
-        List<TableDescriptor> list = admin.listTableDescriptors();
-        for (TableDescriptor tableDescriptor: list) {
-            log.info("table: {}, columns: {}", tableDescriptor.getTableName(), Arrays.toString(tableDescriptor.getColumnFamilies()));
-        }
-        return list;
-    }
+
 
     /**
      * 判断表是否存在
@@ -86,45 +82,98 @@ public class HbaseService {
 
     /**
      * 创建表
-     * @param table 表名
-     * @param columnFamily 列族名称
-     * @throws IOException
+     * @param table 表对象
+     * @throws IOException 异常
      */
-    public void createTable(String table, String ... columnFamily) throws IOException {
+    public ResultVO createTable(HBaseTableModel table) {
         // 获取操作对象
         Admin admin = getAdmin();
         // 构建一个test2表
-        TableDescriptorBuilder tableDescriptorBuilder = TableDescriptorBuilder.newBuilder(TableName.valueOf(table));
+        TableDescriptorBuilder tableDescriptorBuilder = TableDescriptorBuilder.newBuilder(TableName.valueOf(table.getName()));
         // 创建列族
-        for (String cf : columnFamily) {
+        for (String cf : table.getFamilies()) {
             ColumnFamilyDescriptor cfd = ColumnFamilyDescriptorBuilder.of(cf);
             tableDescriptorBuilder.setColumnFamily(cfd);
         }
         // 构建
         TableDescriptor tableDescriptor = tableDescriptorBuilder.build();
         // 创建表
-        admin.createTable(tableDescriptor);
-        log.info("建表 {} 成功", table);
+        try {
+            admin.createTable(tableDescriptor);
+            log.info("建表 {} 成功", table.getName());
+            return ResultVO.success("建表 " + table.getName() + " 成功");
+        } catch (IOException e) {
+            log.error("建表 {} 失败", table.getName(), e);
+            return ResultVO.fail("建表 " + table.getName() + " 失败, 错误信息： " + e.getMessage());
+        }
+
     }
 
     /**
      * 删除表
      * @param table 表名
-     * @throws IOException
+     * @throws IOException 异常
      */
-    public void deleteTable(String table) throws IOException {
+    public ResultVO deleteTable(String table) {
         Admin admin = getAdmin();
-        admin.deleteTable(TableName.valueOf(table));
-        log.info("删表 {} 成功", table);
+        try {
+            admin.deleteTable(TableName.valueOf(table));
+            return ResultVO.success("删表 " + table + " 成功");
+        } catch (IOException e) {
+            log.error("删除表 {} 失败", table, e);
+            return ResultVO.fail("删除表 " + table + " 失败, 错误信息： " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取所有表
+     */
+    public ResultVO getTableList() {
+        Admin admin = getAdmin();
+        List<HBaseTableVO> tables = new ArrayList<>();
+
+        List<TableDescriptor> list = null;
+        try {
+            list = admin.listTableDescriptors();
+            for (TableDescriptor tableDescriptor: list) {
+                tables.add(new HBaseTableVO(tableDescriptor.getTableName().getNameAsString(), tableDescriptor.getColumnFamilies()));
+            }
+            return ResultVO.success(tables);
+        } catch (IOException e) {
+            log.error("获取所有表信息失败", e);
+            return ResultVO.fail("获取所有表信息失败, 错误信息： " + e.getMessage());
+        }
+
     }
 
     /**
      * 插入数据
-     * @param tableName 表名
-     * @param columns 插入的数据
-     * @throws IOException
+     * @param data 数据对象
+     * @throws IOException 异常
      */
-    public void insertData(String tableName, List<Map<String, Object>> columns) throws IOException {
+    public ResultVO insertData(HBaseInsertPOJO data) {
+        Connection connection = getConnection();
+        List<Put> puts = new ArrayList<>();
+        for (HBaseRowKeyPOJO rowData : data.getRows()) {
+            Put put = new Put(rowData.getRow());
+            for (HBaseColumnPOJO column : rowData.getColumns()) {
+                //参数：1.列族名  2.列名  3.值
+                put.addColumn(column.getFamily(), column.getQualifier(), column.getValue()) ;
+            }
+            puts.add(put);
+        }
+        try {
+            Table table = connection.getTable(data.getTableName());
+            table.put(puts);
+            return ResultVO.success("数据插入成功");
+        } catch (IOException e) {
+            log.error("插入 {} 数据失败", data.getTableName().getNameAsString(), e);
+            return ResultVO.fail("数据插入失败, 错误信息： " + e.getMessage());
+        }
+
+    }
+
+    public void insertData2(String tableName, List<Map<String, Object>> columns) throws IOException {
         Connection connection = getConnection();
         Table table = connection.getTable(TableName.valueOf(tableName));
         List<Put> puts = new ArrayList<>();
@@ -144,7 +193,7 @@ public class HbaseService {
     /**
      * 使用scan扫描表里的数据
      * @param tableName 表名
-     * @throws IOException
+     * @throws IOException 异常
      */
     public List<Map<String, Object>> scanData(String tableName) throws IOException {
         Connection connection = getConnection();
@@ -183,7 +232,7 @@ public class HbaseService {
      * 使用get获取表里指定row的数据
      * @param tableName 表名
      * @param rows row集合
-     * @throws IOException
+     * @throws IOException 异常
      */
     public List<Map<String, Object>> getData(String tableName, List<String> rows) throws IOException {
         Connection connection = getConnection();
@@ -222,7 +271,7 @@ public class HbaseService {
     /**
      * 上传文件到hbase(将文件分割成固定大小的文本，多次存储到某个表中)
      * @param filePath 文件路径
-     * @throws IOException
+     * @throws IOException 异常
      */
     public void upload(String filePath) throws IOException {
         File file = new File(filePath);
@@ -256,17 +305,17 @@ public class HbaseService {
             cell.put("value", Bytes.toString(value));
             list.add(cell);
             columns.add(column);
-            insertData("test3", columns);
+            insertData2("test3", columns);
         }
     }
 
     /**
-     * 从hdfs中将上传的数据 下载到本地
+     * 从hdfs中将上传的文件 下载到本地
      * @param filePath 下载路径
      * @param tableName 表名
-     * @param rows row集合
+     * @param rows row集合(上传文件时拆分开的所有row)
      * @param qualifier 需要获取的列名
-     * @throws IOException
+     * @throws IOException 异常
      */
     public void download(String filePath, String tableName, List<String> rows, String qualifier) throws IOException {
         FileOutputStream fs = new FileOutputStream(filePath, true);
@@ -284,13 +333,13 @@ public class HbaseService {
 
 
     public static void main(String[] args) throws IOException {
-        HbaseService hbaseService = new HbaseService();
+        HBaseService hbaseService = new HBaseService();
 
 //        hbaseService.createTable("test3", "info", "base", "emp", "advance");
 
 //        hbaseService.deleteTable("test3");
 
-//        hbaseService.getTableList();
+        hbaseService.getTableList();
 
 //        String[] qualifiers = {"base", "emp", "advance"};
 //        List<Map<String, Object>> columns = new ArrayList<>();
@@ -308,7 +357,7 @@ public class HbaseService {
 //            }
 //            columns.add(column);
 //        }
-//        hbaseService.insertData("test3", columns);
+//        hbaseService.insertData2("test3", columns);
 
 //        hbaseService.scanData("test3");
 
@@ -316,8 +365,8 @@ public class HbaseService {
 
 //        hbaseService.upload("C:\\Users\\grassprince\\Desktop\\src2\\main\\java\\io\\transwarp\\config\\Test.java");
 
-        hbaseService.download("./test.txt", "test3",
-                Arrays.asList("e9e868406875100a4d72322475d6d8eb1", "e9e868406875100a4d72322475d6d8eb2", "e9e868406875100a4d72322475d6d8eb3"), "base");
+//        hbaseService.download("./test.txt", "test3",
+//                Arrays.asList("e9e868406875100a4d72322475d6d8eb1", "e9e868406875100a4d72322475d6d8eb2", "e9e868406875100a4d72322475d6d8eb3"), "base");
     }
 
 

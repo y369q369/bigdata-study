@@ -17,6 +17,8 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
  * @Author grassPrince
  * @Date 2020/7/14 8:52
  * @Description swagger的配置
+ *                  参考： https://github.com/springdoc/springdoc-openapi-demos
+ *                          https://springdoc.org/
  **/
 
 @Configuration
@@ -25,15 +27,15 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 @Import(BeanValidatorPluginsConfiguration.class)
 public class SwaggerConfiguration {
 
-    @Bean(value = "auto-deployment")
+    @Bean(value = "大数据API学习")
     public Docket httpsTestApi() {
-        Docket docket=new Docket(DocumentationType.OAS_30)
+        Docket docket=new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 //分组名称
-                .groupName("auto-deployment")
+                .groupName("大数据API学习")
                 .select()
                 //这里指定Controller扫描包路径
-                .apis(RequestHandlerSelectors.basePackage("com.example.bigdatastudy.controller"))
+                .apis(RequestHandlerSelectors.basePackage("com.example.springbootApi.controller"))
                 .paths(PathSelectors.any())
                 .build();
         return docket;
@@ -41,9 +43,9 @@ public class SwaggerConfiguration {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("auto-deployment")
-                .description("根据topic自动化部署connector和table")
-                .termsOfServiceUrl("http://localhost:9191/bigdata-study/doc.html")
+                .title("大数据API学习")
+                .description("大数据相关组件：hdfs,hbase等api使用学习")
+                .termsOfServiceUrl("http://localhost:8070/bigdata-study/doc.html")
                 .version("1.0")
                 .build();
     }
