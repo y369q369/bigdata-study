@@ -29,7 +29,7 @@ public class SwaggerConfiguration {
 
     @Bean(value = "大数据API学习")
     public Docket httpsTestApi() {
-        Docket docket=new Docket(DocumentationType.SWAGGER_2)
+        Docket docket=new Docket(DocumentationType.OAS_30)
                 .apiInfo(apiInfo())
                 //分组名称
                 .groupName("大数据API学习")
