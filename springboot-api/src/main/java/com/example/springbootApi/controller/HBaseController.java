@@ -49,4 +49,14 @@ public class HBaseController {
         return hBaseService.insertData(hBaseInsertModel.convert());
     }
 
+    @GetMapping("scanTable")
+    public ResultVO scanTable() {
+        return null;
+    }
+
+    @GetMapping("getTable")
+    public ResultVO getTable() {
+        return null;
+    }
+
 }
