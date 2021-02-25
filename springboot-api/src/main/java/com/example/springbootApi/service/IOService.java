@@ -83,6 +83,11 @@ public class IOService {
         log.info("字符流写入完成");
     }
 
+    /**
+     * 字节流 写入
+     * @param filePath 文件路径
+     * @throws IOException
+     */
     public void write2(String filePath) throws IOException {
         // 覆盖原有内容
 //        FileOutputStream fs = new FileOutputStream(filePath);

@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -128,6 +127,7 @@ public class HbaseService {
     public void insertData(String tableName, List<Map<String, Object>> columns) throws IOException {
         Connection connection = getConnection();
         Table table = connection.getTable(TableName.valueOf(tableName));
+        List<Put> puts = new ArrayList<>();
         for (Map<String, Object> column : columns) {
             Put put = new Put(column.get("row").toString().getBytes());
 //            List<Map<String, String>> cells = (List<Map<String, String>>) column.get("cell");
@@ -135,21 +135,28 @@ public class HbaseService {
                 //参数：1.列族名  2.列名  3.值
                 put.addColumn(cell.get("family").getBytes(), cell.get("qualifier").getBytes(), cell.get("value").getBytes()) ;
             }
-            table.put(put);
+            puts.add(put);
         }
+        table.put(puts);
         log.info("表 {} 数据插入成功！", tableName);
     }
 
     /**
-     * 获取某个表里的所有数据
+     * 使用scan扫描表里的数据
      * @param tableName 表名
      * @throws IOException
      */
-    public void getAllData(String tableName) throws IOException {
+    public List<Map<String, Object>> scanData(String tableName) throws IOException {
         Connection connection = getConnection();
         Table table = connection.getTable(TableName.valueOf(tableName));
         List<Map<String, Object>> columns = new ArrayList<>();
-        ResultScanner results = table.getScanner(new Scan());
+        Scan scan = new Scan();
+        // 设置扫描的起始row
+//        scan.withStartRow("e9e868406875100a4d72322475d6d8eb1".getBytes());
+//        scan.withStopRow("e9e868406875100a4d72322475d6d8eb99".getBytes());
+        ResultScanner results = table.getScanner(scan);
+        // 使用 family 和 qualifier 进行扫描
+//        ResultScanner results = table.getScanner("info".getBytes(), "advance".getBytes());
         for (Result result : results){
             Map<String, Object> column = new HashMap<>();
             column.put("row", new String(result.getRow()));
@@ -168,7 +175,48 @@ public class HbaseService {
             columns.add(column);
 
         }
-        log.info("获取表 {} 的数据： {}", tableName, columns.toString());
+        log.info("scan获取表 {} 的数据： {}", tableName, columns.toString());
+        return columns;
+    }
+
+    /**
+     * 使用get获取表里指定row的数据
+     * @param tableName 表名
+     * @param rows row集合
+     * @throws IOException
+     */
+    public List<Map<String, Object>> getData(String tableName, List<String> rows) throws IOException {
+        Connection connection = getConnection();
+        Table table = connection.getTable(TableName.valueOf(tableName));
+        List<Map<String, Object>> columns = new ArrayList<>();
+
+        for (String row : rows) {
+            Get get = new Get(row.getBytes());
+            // 设置获取的family
+//            get.addFamily(Bytes.toBytes("base"));
+            // 设置获取的family 和 qualifier
+            get.addColumn(Bytes.toBytes("info"), Bytes.toBytes("base"));
+
+            Result result = table.get(get);
+            Map<String, Object> column = new HashMap<>();
+            column.put("row", new String(result.getRow()));
+            List<Map<String, String>> cells = new ArrayList<>();
+            column.put("cell", cells);
+            for(Cell cell : result.listCells()){
+                Map<String, String> realCell = new HashMap<>();
+                String family = Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
+                realCell.put("family", family);
+                String qualifier = Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
+                realCell.put("qualifier", qualifier);
+                String value = Bytes.toString(cell.getValueArray(), cell.getValueOffset(), cell.getValueLength());
+                realCell.put("value", value);
+                cells.add(realCell);
+            }
+            columns.add(column);
+        }
+
+        log.info("get获取表 {} 的数据： {}", tableName, columns.toString());
+        return columns;
     }
 
     /**
@@ -212,6 +260,28 @@ public class HbaseService {
         }
     }
 
+    /**
+     * 从hdfs中将上传的数据 下载到本地
+     * @param filePath 下载路径
+     * @param tableName 表名
+     * @param rows row集合
+     * @param qualifier 需要获取的列名
+     * @throws IOException
+     */
+    public void download(String filePath, String tableName, List<String> rows, String qualifier) throws IOException {
+        FileOutputStream fs = new FileOutputStream(filePath, true);
+        List<Map<String, Object>> results = getData(tableName, rows);
+        for (Map<String, Object> result : results) {
+            List<Map<String, String>> cell = (List<Map<String, String>>) result.get("cell");
+            for (Map<String, String> column : cell) {
+                if (qualifier.equals(column.get("qualifier"))) {
+                    log.info(column.get("value"));
+                    fs.write(Bytes.toBytes(column.get("value")));
+                }
+            }
+        }
+    }
+
 
     public static void main(String[] args) throws IOException {
         HbaseService hbaseService = new HbaseService();
@@ -240,9 +310,14 @@ public class HbaseService {
 //        }
 //        hbaseService.insertData("test3", columns);
 
-//        hbaseService.getAllData("test3");
+//        hbaseService.scanData("test3");
 
-        hbaseService.upload("C:\\Users\\grassprince\\Desktop\\src2\\main\\java\\io\\transwarp\\config\\Test.java");
+//        hbaseService.getData("test3", Arrays.asList("115321", "e9e868406875100a4d72322475d6d8eb2"));
+
+//        hbaseService.upload("C:\\Users\\grassprince\\Desktop\\src2\\main\\java\\io\\transwarp\\config\\Test.java");
+
+        hbaseService.download("./test.txt", "test3",
+                Arrays.asList("e9e868406875100a4d72322475d6d8eb1", "e9e868406875100a4d72322475d6d8eb2", "e9e868406875100a4d72322475d6d8eb3"), "base");
     }
 
 
