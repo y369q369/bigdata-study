@@ -1,4 +1,4 @@
-package com.example.springbootApi.model;
+package com.example.springbootApi.po;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
@@ -9,7 +9,7 @@ import lombok.Data;
  * @Description 列组元素数据对象
  **/
 @Data
-public class HBaseColumnModel {
+public class HBaseCellPO {
 
     /** 列族名称 */
     @ApiModelProperty(value = "列族名称", example = "info")

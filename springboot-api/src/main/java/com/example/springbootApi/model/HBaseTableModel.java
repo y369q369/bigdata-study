@@ -2,7 +2,6 @@ package com.example.springbootApi.model;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.List;
@@ -22,6 +21,11 @@ public class HBaseTableModel {
     @ApiModelProperty(value = "列族名称集合")
     private List<String> families;
 
-    private String qualifier;
+//    private String qualifier;
 
+
+    public HBaseTableModel(String name, List<String> families) {
+        this.name = name;
+        this.families = families;
+    }
 }

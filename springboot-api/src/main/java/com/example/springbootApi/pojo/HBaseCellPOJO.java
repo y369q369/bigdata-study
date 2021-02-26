@@ -8,7 +8,7 @@ import lombok.Data;
  * @Description 列组元素数据对象
  **/
 @Data
-public class HBaseColumnPOJO {
+public class HBaseCellPOJO {
 
     /** 列族名称 */
     private byte[] family;
@@ -19,4 +19,12 @@ public class HBaseColumnPOJO {
     /** 列族元素的值 */
     private byte[] value;
 
+    public HBaseCellPOJO(byte[] family, byte[] qualifier, byte[] value) {
+        this.family = family;
+        this.qualifier = qualifier;
+        this.value = value;
+    }
+
+    public HBaseCellPOJO() {
+    }
 }

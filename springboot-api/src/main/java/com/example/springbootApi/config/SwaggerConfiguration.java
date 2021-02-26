@@ -11,7 +11,7 @@ import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.service.ApiInfo;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2;
+import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 
 /**
  * @Author grassPrince
@@ -22,14 +22,13 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
  **/
 
 @Configuration
-@EnableSwagger2
-@EnableKnife4j
+@EnableSwagger2WebMvc
 @Import(BeanValidatorPluginsConfiguration.class)
 public class SwaggerConfiguration {
 
     @Bean(value = "大数据API学习")
     public Docket httpsTestApi() {
-        Docket docket=new Docket(DocumentationType.OAS_30)
+        Docket docket=new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 //分组名称
                 .groupName("大数据API学习")

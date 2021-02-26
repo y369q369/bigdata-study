@@ -1,15 +1,16 @@
 package com.example.springbootApi.controller;
 
-import com.example.springbootApi.model.HBaseInsertModel;
+import com.example.springbootApi.constant.UploadTable;
+import com.example.springbootApi.model.HBaseGetModel;
+import com.example.springbootApi.po.HBaseTablePO;
+import com.example.springbootApi.model.HBaseScanModel;
 import com.example.springbootApi.model.HBaseTableModel;
 import com.example.springbootApi.service.HBaseService;
 import com.example.springbootApi.vo.ResultVO;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.annotations.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * @Author grassPrince
@@ -32,31 +33,46 @@ public class HBaseController {
     }
 
     @DeleteMapping("table/{tableName}")
-    @Operation(summary = "table", description = "删表")
-    public ResultVO deleteTable(@Parameter(description = "表名") @PathVariable String tableName) {
+    @ApiOperation(value = "table", notes = "删表")
+    @ApiParam(name = "tableName", value = "表名", example = "test")
+    public ResultVO deleteTable(@PathVariable String tableName) {
         return hBaseService.deleteTable(tableName);
     }
 
     @GetMapping("tables")
-    @Operation(summary = "tables", description = "获取所有表信息")
+    @ApiOperation(value = "tables", notes = "获取所有表信息")
     public ResultVO getTableList() {
         return hBaseService.getTableList();
     }
 
     @PostMapping("insertData")
-    @Operation(summary = "insertData", description = "向表中插入数据")
-    public ResultVO insertData(@RequestBody HBaseInsertModel hBaseInsertModel) {
-        return hBaseService.insertData(hBaseInsertModel.convert());
+    @ApiOperation(value = "insertData", notes = "向表中插入数据")
+    public ResultVO insertData(@RequestBody HBaseTablePO hBaseInsertPO) {
+        return hBaseService.insertData(hBaseInsertPO.convert());
     }
 
-    @GetMapping("scanTable")
-    public ResultVO scanTable() {
-        return null;
+    @PostMapping("scanData")
+    @ApiOperation(value = "scanData", notes = "scan扫描表中数据 （查询参数过多，封装成post查询）")
+    public ResultVO getDataByScan(@RequestBody HBaseScanModel hBaseScanModel) {
+        return hBaseService.scanData(hBaseScanModel);
     }
 
-    @GetMapping("getTable")
-    public ResultVO getTable() {
-        return null;
+    @PostMapping("getData")
+    @ApiOperation(value = "getData", notes = "get获取表中数据 （查询参数过多，封装成post查询）")
+    public ResultVO getDataByGet(@RequestBody HBaseGetModel hBaseGetModel) {
+        return hBaseService.getData(hBaseGetModel);
+    }
+
+    @PostMapping("upload")
+    @ApiOperation(value = "upload", notes = "将文件上传按固定大小拆分，分别存储到HBase中")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "multipartFile", value = "文件", dataType = "__File", required = true, allowMultiple = true),
+            @ApiImplicitParam(name = "fileName", value = "文件名称", dataType = "string"),
+    })
+    public ResultVO upload(@RequestParam(value = "multipartFile") MultipartFile multipartFile,
+                           @RequestParam(value = "fileName") String fileName) {
+        //
+        return hBaseService.upload(multipartFile, fileName);
     }
 
 }

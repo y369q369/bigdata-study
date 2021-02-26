@@ -1,10 +1,15 @@
 package com.example.springbootApi.service;
 
-import com.example.springbootApi.model.HBaseTableModel;
-import com.example.springbootApi.pojo.HBaseColumnPOJO;
+import com.example.springbootApi.constant.UploadTable;
+import com.example.springbootApi.model.*;
+import com.example.springbootApi.po.HBaseCellPO;
+import com.example.springbootApi.po.HBaseRowKeyPO;
+import com.example.springbootApi.po.HBaseTablePO;
+import com.example.springbootApi.pojo.HBaseCellPOJO;
 import com.example.springbootApi.pojo.HBaseInsertPOJO;
 import com.example.springbootApi.pojo.HBaseRowKeyPOJO;
 import com.example.springbootApi.utils.CommonUtil;
+import com.example.springbootApi.utils.DataHandleUtil;
 import com.example.springbootApi.vo.HBaseTableVO;
 import com.example.springbootApi.vo.ResultVO;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +20,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.util.*;
@@ -70,20 +76,22 @@ public class HBaseService {
      * 判断表是否存在
      * @param table 表名
      * @return 判断结果
-     * @throws IOException
      */
-    public boolean isTableExist(String table) throws IOException {
+    public boolean isTableExist(String table) {
         Admin admin = getAdmin();
-        boolean flag = admin.tableExists(TableName.valueOf(table));
-        log.info("表 {} {}", table, flag ? "存在" : "不存在");
-        return flag;
+        try {
+            boolean flag = admin.tableExists(TableName.valueOf(table));
+            return flag;
+        } catch (IOException e) {
+            log.error("判断表 {} 是否存在失败", table, e);
+            return false;
+        }
     }
 
 
     /**
      * 创建表
      * @param table 表对象
-     * @throws IOException 异常
      */
     public ResultVO createTable(HBaseTableModel table) {
         // 获取操作对象
@@ -110,15 +118,36 @@ public class HBaseService {
     }
 
     /**
+     * 强制创建表：判断表是否存在 -> 不存在在时建表
+     * @param table 表对象
+     */
+    public ResultVO createCompulsionTable(HBaseTableModel table) {
+        Admin admin = getAdmin();
+        try {
+            if (!admin.tableExists(TableName.valueOf(table.getName()))) {
+                return createTable(table);
+            };
+            return ResultVO.success("表 " + table.getName() + " 已存在， 不需重建");
+        } catch (IOException e) {
+            log.error("判断表 {} 是否存在失败", table, e);
+            return ResultVO.fail("判断表 " + table.getName() + " 是否存在失败, 错误信息： " + e.getMessage());
+        }
+    }
+
+    /**
      * 删除表
      * @param table 表名
-     * @throws IOException 异常
      */
     public ResultVO deleteTable(String table) {
         Admin admin = getAdmin();
         try {
-            admin.deleteTable(TableName.valueOf(table));
-            return ResultVO.success("删表 " + table + " 成功");
+            boolean flag = admin.tableExists(TableName.valueOf(table));
+            if (flag) {
+                admin.disableTable(TableName.valueOf(table));
+                admin.deleteTable(TableName.valueOf(table));
+                return ResultVO.success("删表 " + table + " 成功");
+            }
+            return ResultVO.fail("表 " + table + " 不存在");
         } catch (IOException e) {
             log.error("删除表 {} 失败", table, e);
             return ResultVO.fail("删除表 " + table + " 失败, 错误信息： " + e.getMessage());
@@ -149,14 +178,13 @@ public class HBaseService {
     /**
      * 插入数据
      * @param data 数据对象
-     * @throws IOException 异常
      */
     public ResultVO insertData(HBaseInsertPOJO data) {
         Connection connection = getConnection();
         List<Put> puts = new ArrayList<>();
         for (HBaseRowKeyPOJO rowData : data.getRows()) {
             Put put = new Put(rowData.getRow());
-            for (HBaseColumnPOJO column : rowData.getColumns()) {
+            for (HBaseCellPOJO column : rowData.getCells()) {
                 //参数：1.列族名  2.列名  3.值
                 put.addColumn(column.getFamily(), column.getQualifier(), column.getValue()) ;
             }
@@ -170,103 +198,137 @@ public class HBaseService {
             log.error("插入 {} 数据失败", data.getTableName().getNameAsString(), e);
             return ResultVO.fail("数据插入失败, 错误信息： " + e.getMessage());
         }
-
-    }
-
-    public void insertData2(String tableName, List<Map<String, Object>> columns) throws IOException {
-        Connection connection = getConnection();
-        Table table = connection.getTable(TableName.valueOf(tableName));
-        List<Put> puts = new ArrayList<>();
-        for (Map<String, Object> column : columns) {
-            Put put = new Put(column.get("row").toString().getBytes());
-//            List<Map<String, String>> cells = (List<Map<String, String>>) column.get("cell");
-            for (Map<String, String> cell : (List<Map<String, String>>) column.get("cell")) {
-                //参数：1.列族名  2.列名  3.值
-                put.addColumn(cell.get("family").getBytes(), cell.get("qualifier").getBytes(), cell.get("value").getBytes()) ;
-            }
-            puts.add(put);
-        }
-        table.put(puts);
-        log.info("表 {} 数据插入成功！", tableName);
     }
 
     /**
      * 使用scan扫描表里的数据
-     * @param tableName 表名
-     * @throws IOException 异常
+     * @param hBaseScanModel 扫描参数对象
      */
-    public List<Map<String, Object>> scanData(String tableName) throws IOException {
+    public ResultVO scanData(HBaseScanModel hBaseScanModel) {
         Connection connection = getConnection();
-        Table table = connection.getTable(TableName.valueOf(tableName));
-        List<Map<String, Object>> columns = new ArrayList<>();
         Scan scan = new Scan();
         // 设置扫描的起始row
-//        scan.withStartRow("e9e868406875100a4d72322475d6d8eb1".getBytes());
-//        scan.withStopRow("e9e868406875100a4d72322475d6d8eb99".getBytes());
-        ResultScanner results = table.getScanner(scan);
-        // 使用 family 和 qualifier 进行扫描
-//        ResultScanner results = table.getScanner("info".getBytes(), "advance".getBytes());
-        for (Result result : results){
-            Map<String, Object> column = new HashMap<>();
-            column.put("row", new String(result.getRow()));
-            List<Map<String, String>> cells = new ArrayList<>();
-            column.put("cell", cells);
-            for(Cell cell : result.listCells()){
-                Map<String, String> realCell = new HashMap<>();
-                String family = Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
-                realCell.put("family", family);
-                String qualifier = Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
-                realCell.put("qualifier", qualifier);
-                String value = Bytes.toString(cell.getValueArray(), cell.getValueOffset(), cell.getValueLength());
-                realCell.put("value", value);
-                cells.add(realCell);
-            }
-            columns.add(column);
-
+        if(CommonUtil.isNotEmpty(hBaseScanModel.getStartRow())) {
+            scan.withStartRow(hBaseScanModel.getStartRow().getBytes());
         }
-        log.info("scan获取表 {} 的数据： {}", tableName, columns.toString());
-        return columns;
+        // 设置扫描的结尾row
+        if(CommonUtil.isNotEmpty(hBaseScanModel.getStopRow())) {
+            scan.withStopRow(hBaseScanModel.getStopRow().getBytes());
+        }
+        // 设置扫描的列族和元素
+        if(CommonUtil.isNotEmpty(hBaseScanModel.getCells())) {
+            for (HBaseScanCellModel cellModel : hBaseScanModel.getCells()) {
+                if (CommonUtil.isNotEmpty(cellModel.getFamily())) {
+                    if (CommonUtil.isNotEmpty(cellModel.getQualifier())) {
+                        scan.addColumn(cellModel.getFamily().getBytes(), cellModel.getQualifier().getBytes());
+                    } else {
+                        scan.addFamily(cellModel.getFamily().getBytes());
+                    }
+                }
+            }
+        }
+        try {
+            Table table = connection.getTable(TableName.valueOf(hBaseScanModel.getName()));
+            ResultScanner results = table.getScanner(scan);
+            return handleResult(hBaseScanModel.getName(), results);
+        } catch (IOException e) {
+            log.error("scan扫描 {} 数据失败", hBaseScanModel.getName(), e);
+            return ResultVO.fail("scan扫描数据失败, 错误信息： " + e.getMessage());
+        }
     }
 
     /**
      * 使用get获取表里指定row的数据
-     * @param tableName 表名
-     * @param rows row集合
-     * @throws IOException 异常
+     * @param hBaseGetModel get获取参数对象
      */
-    public List<Map<String, Object>> getData(String tableName, List<String> rows) throws IOException {
+    public ResultVO getData(HBaseGetModel hBaseGetModel) {
         Connection connection = getConnection();
-        Table table = connection.getTable(TableName.valueOf(tableName));
-        List<Map<String, Object>> columns = new ArrayList<>();
-
-        for (String row : rows) {
-            Get get = new Get(row.getBytes());
-            // 设置获取的family
-//            get.addFamily(Bytes.toBytes("base"));
-            // 设置获取的family 和 qualifier
-            get.addColumn(Bytes.toBytes("info"), Bytes.toBytes("base"));
-
-            Result result = table.get(get);
-            Map<String, Object> column = new HashMap<>();
-            column.put("row", new String(result.getRow()));
-            List<Map<String, String>> cells = new ArrayList<>();
-            column.put("cell", cells);
-            for(Cell cell : result.listCells()){
-                Map<String, String> realCell = new HashMap<>();
-                String family = Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
-                realCell.put("family", family);
-                String qualifier = Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
-                realCell.put("qualifier", qualifier);
-                String value = Bytes.toString(cell.getValueArray(), cell.getValueOffset(), cell.getValueLength());
-                realCell.put("value", value);
-                cells.add(realCell);
+        List<Get> gets = new ArrayList<>();
+        if(CommonUtil.isNotEmpty(hBaseGetModel.getCells())) {
+            for (HBaseGetCellModel cellModel : hBaseGetModel.getCells()) {
+                if (CommonUtil.isNotEmpty(cellModel.getRow())) {
+                    // 设置获取的row
+                    Get get = new Get(cellModel.getRow().getBytes());
+                    // 设置获取row的列族和元素
+                    if (CommonUtil.isNotEmpty(cellModel.getFamily())) {
+                        if (CommonUtil.isNotEmpty(cellModel.getQualifier())) {
+                            get.addColumn(cellModel.getFamily().getBytes(), cellModel.getQualifier().getBytes());
+                        } else {
+                            get.addFamily(cellModel.getFamily().getBytes());
+                        }
+                    }
+                    gets.add(get);
+                }
             }
-            columns.add(column);
+        }
+        try {
+            Table table = connection.getTable(TableName.valueOf(hBaseGetModel.getName()));
+            Result[] results = table.get(gets);
+            return handleResult(hBaseGetModel.getName(), Arrays.asList(results));
+        } catch (IOException e) {
+            log.error("get获取 {} 数据失败", hBaseGetModel.getName(), e);
+            return ResultVO.fail("get获取数据失败, 错误信息： " + e.getMessage());
+        }
+    }
+
+    /**
+     * 处理获取结果
+     * @param table 表名
+     * @param results 查询的数据集合
+     * @return
+     */
+    public ResultVO handleResult(String table, Iterable<Result> results) {
+        HBaseTablePO tablePO = new HBaseTablePO();
+        tablePO.setTableName(table);
+        List<HBaseRowKeyPO> rows = new ArrayList<>();
+        tablePO.setRows(rows);
+        for (Result result: results) {
+            HBaseRowKeyPO rowKeyPO = new HBaseRowKeyPO();
+            rowKeyPO.setRow(Bytes.toString(result.getRow()));
+            List<HBaseCellPO> cells = new ArrayList<>();
+            rowKeyPO.setCells(cells);
+            for(Cell cell : result.listCells()){
+                HBaseCellPO hBaseCellPO = new HBaseCellPO();
+                hBaseCellPO.setFamily(Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength()));
+                hBaseCellPO.setQualifier(Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength()));
+                hBaseCellPO.setValue(Bytes.toString(cell.getValueArray(), cell.getValueOffset(), cell.getValueLength()));
+                cells.add(hBaseCellPO);
+            }
+            rows.add(rowKeyPO);
+        }
+        return ResultVO.success(tablePO);
+    }
+
+    /**
+     * 上传文件到HBase表，将文件切割成固定大小的内容多次上传
+     * @param multipartFile 待上传文件
+     * @param fileName 文件名
+     * @return
+     */
+    public ResultVO upload(MultipartFile multipartFile, String fileName) {
+        ResultVO resultVO = createCompulsionTable(new HBaseTableModel(UploadTable.FILE_TABLE_NAME, Collections.singletonList(UploadTable.FILE_FAMILY)));
+        if (resultVO.isStatus()) {
+            resultVO = createCompulsionTable(new HBaseTableModel(UploadTable.INFO_TABLE_NAME, Collections.singletonList(UploadTable.INFO_FAMILY)));
+            if(resultVO.isStatus()) {
+                List<HBaseInsertPOJO> list = DataHandleUtil.file2UploadTable(multipartFile, fileName);
+                if(list != null) {
+                    for (HBaseInsertPOJO insert: list) {
+                        resultVO = insertData(insert);
+                        if (!resultVO.isStatus()) {
+                            // TODO 此处未处理文件内容插入成功，配置信息未插入成功的事务
+                            return resultVO;
+                        }
+                    }
+                } else {
+                    resultVO = ResultVO.fail("文件处理过程失败，尚未传入表");
+                }
+            }
         }
 
-        log.info("get获取表 {} 的数据： {}", tableName, columns.toString());
-        return columns;
+        return resultVO;
     }
+
+
 
     /**
      * 上传文件到hbase(将文件分割成固定大小的文本，多次存储到某个表中)
@@ -305,31 +367,31 @@ public class HBaseService {
             cell.put("value", Bytes.toString(value));
             list.add(cell);
             columns.add(column);
-            insertData2("test3", columns);
+//            insertData2("test3", columns);
         }
     }
 
-    /**
-     * 从hdfs中将上传的文件 下载到本地
-     * @param filePath 下载路径
-     * @param tableName 表名
-     * @param rows row集合(上传文件时拆分开的所有row)
-     * @param qualifier 需要获取的列名
-     * @throws IOException 异常
-     */
-    public void download(String filePath, String tableName, List<String> rows, String qualifier) throws IOException {
-        FileOutputStream fs = new FileOutputStream(filePath, true);
-        List<Map<String, Object>> results = getData(tableName, rows);
-        for (Map<String, Object> result : results) {
-            List<Map<String, String>> cell = (List<Map<String, String>>) result.get("cell");
-            for (Map<String, String> column : cell) {
-                if (qualifier.equals(column.get("qualifier"))) {
-                    log.info(column.get("value"));
-                    fs.write(Bytes.toBytes(column.get("value")));
-                }
-            }
-        }
-    }
+//    /**
+//     * 从hdfs中将上传的文件 下载到本地
+//     * @param filePath 下载路径
+//     * @param tableName 表名
+//     * @param rows row集合(上传文件时拆分开的所有row)
+//     * @param qualifier 需要获取的列名
+//     * @throws IOException 异常
+//     */
+//    public void download(String filePath, String tableName, List<String> rows, String qualifier) throws IOException {
+//        FileOutputStream fs = new FileOutputStream(filePath, true);
+//        List<Map<String, Object>> results = getData(tableName, rows);
+//        for (Map<String, Object> result : results) {
+//            List<Map<String, String>> cell = (List<Map<String, String>>) result.get("cell");
+//            for (Map<String, String> column : cell) {
+//                if (qualifier.equals(column.get("qualifier"))) {
+//                    log.info(column.get("value"));
+//                    fs.write(Bytes.toBytes(column.get("value")));
+//                }
+//            }
+//        }
+//    }
 
 
     public static void main(String[] args) throws IOException {

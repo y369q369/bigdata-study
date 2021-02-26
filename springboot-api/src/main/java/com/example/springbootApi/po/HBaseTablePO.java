@@ -1,6 +1,6 @@
-package com.example.springbootApi.model;
+package com.example.springbootApi.po;
 
-import com.example.springbootApi.pojo.HBaseColumnPOJO;
+import com.example.springbootApi.pojo.HBaseCellPOJO;
 import com.example.springbootApi.pojo.HBaseInsertPOJO;
 import com.example.springbootApi.pojo.HBaseRowKeyPOJO;
 import io.swagger.annotations.ApiModelProperty;
@@ -16,13 +16,13 @@ import java.util.List;
  * @Description HBase插入数据对象
  **/
 @Data
-public class HBaseInsertModel {
+public class HBaseTablePO {
 
     @ApiModelProperty(value = "表名", example = "test")
     private String tableName;
 
     /** rowKey对应的值 */
-    private List<HBaseRowKeyModel> rows;
+    private List<HBaseRowKeyPO> rows;
 
     /**
      * 将 HBaseInsertModel 转换为 HBaseInsertPOJO
@@ -33,18 +33,14 @@ public class HBaseInsertModel {
         insert.setTableName(TableName.valueOf(tableName));
         List<HBaseRowKeyPOJO> rowKeys = new ArrayList<>();
         insert.setRows(rowKeys);
-        for (HBaseRowKeyModel rowKeyModel : rows) {
+        for (HBaseRowKeyPO rowKeyModel : rows) {
             HBaseRowKeyPOJO rowKeyPOJO = new HBaseRowKeyPOJO();
             rowKeyPOJO.setRow(rowKeyModel.getRow().getBytes());
-            List<HBaseColumnPOJO> columns = new ArrayList<>();
-            for (HBaseColumnModel columnModel: rowKeyModel.getColumns()) {
-                HBaseColumnPOJO columnPOJO = new HBaseColumnPOJO();
-                columnPOJO.setFamily(columnModel.getFamily().getBytes());
-                columnPOJO.setQualifier(columnModel.getQualifier().getBytes());
-                columnPOJO.setValue(columnModel.getValue().getBytes());
-                columns.add(columnPOJO);
+            List<HBaseCellPOJO> cells = new ArrayList<>();
+            for (HBaseCellPO cellModel: rowKeyModel.getCells()) {
+                cells.add(new HBaseCellPOJO(cellModel.getFamily().getBytes(), cellModel.getQualifier().getBytes(), cellModel.getValue().getBytes()));
             }
-            rowKeyPOJO.setColumns(columns);
+            rowKeyPOJO.setCells(cells);
             rowKeys.add(rowKeyPOJO);
         }
         return insert;

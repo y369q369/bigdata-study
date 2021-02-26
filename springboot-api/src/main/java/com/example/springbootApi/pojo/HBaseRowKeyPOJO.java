@@ -3,7 +3,6 @@ package com.example.springbootApi.pojo;
 import lombok.Data;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * @Author grassPrince
@@ -17,6 +16,13 @@ public class HBaseRowKeyPOJO {
     private byte[] row;
 
     /** rowKey对应的值 */
-    private List<HBaseColumnPOJO> columns;
+    private List<HBaseCellPOJO> cells;
 
+    public HBaseRowKeyPOJO(byte[] row, List<HBaseCellPOJO> cells) {
+        this.row = row;
+        this.cells = cells;
+    }
+
+    public HBaseRowKeyPOJO() {
+    }
 }

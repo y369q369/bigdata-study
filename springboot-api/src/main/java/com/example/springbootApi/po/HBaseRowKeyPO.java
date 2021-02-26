@@ -1,4 +1,4 @@
-package com.example.springbootApi.model;
+package com.example.springbootApi.po;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
@@ -11,13 +11,13 @@ import java.util.List;
  * @Description rowKey对应数据对象
  **/
 @Data
-public class HBaseRowKeyModel {
+public class HBaseRowKeyPO {
 
     /** rowKey */
     @ApiModelProperty(value = "row", example = "123456")
     private String row;
 
     /** rowKey对应的值 */
-    private List<HBaseColumnModel> columns;
+    private List<HBaseCellPO> cells;
 
 }

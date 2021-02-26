@@ -2,8 +2,17 @@ package com.example.springbootApi.utils;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 public class CommonUtil {
+
+    public static boolean isNotEmpty(String value) {
+        return value != null && !value.isEmpty() && !value.equals("null");
+    }
+
+    public static <T> boolean isNotEmpty(List<T> list) {
+        return list != null && list.size() > 0;
+    }
 
     // 获取文件的MD5值
     public static String getMD5(String str) {

@@ -4,8 +4,7 @@ import com.example.springbootApi.service.HBaseService;
 import com.example.springbootApi.service.HdfsService;
 import com.example.springbootApi.vo.ResultVO;
 import io.swagger.annotations.Api;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +25,7 @@ public class HdfsController {
     private HdfsService hdfsService;
 
     @GetMapping("/file/{FileName}")
-    @Operation(summary = "file", description = "新建文件")
+    @ApiOperation(value = "file", notes = "新建文件")
     public ResultVO createFile(@PathVariable String FileName) {
         return null;
     }
