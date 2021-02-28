@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
+
 /**
  * @Author grassPrince
  * @Date 2021/2/25 11:26
@@ -71,8 +73,14 @@ public class HBaseController {
     })
     public ResultVO upload(@RequestParam(value = "multipartFile") MultipartFile multipartFile,
                            @RequestParam(value = "fileName") String fileName) {
-        //
         return hBaseService.upload(multipartFile, fileName);
+    }
+
+    @PostMapping("download/{fileName}")
+    @ApiOperation(value = "download", notes = "下载")
+    @ApiParam(name = "fileName", value = "文件名")
+    public ResultVO download(@PathVariable String fileName, HttpServletResponse response) {
+        return hBaseService.download(fileName, response);
     }
 
 }

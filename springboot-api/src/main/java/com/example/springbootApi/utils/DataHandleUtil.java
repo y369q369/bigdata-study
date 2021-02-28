@@ -31,13 +31,12 @@ public class DataHandleUtil {
      * @return
      */
     public static List<HBaseInsertPOJO> file2UploadTable(MultipartFile multipartFile, String fileName) {
-        String row = CommonUtil.getMD5(fileName);
         if (!CommonUtil.isNotEmpty(fileName)) {
             fileName = multipartFile.getOriginalFilename();
         }
+        String row = CommonUtil.getMD5(fileName);
         String[] fileSplit = fileName.split("[.]");
         String fileType = fileSplit.length > 1 ? fileSplit[fileSplit.length - 1] : "";
-
 
         // 生成 处理文件到上传内容表 的数据
         HBaseInsertPOJO content = new HBaseInsertPOJO();
@@ -62,6 +61,7 @@ public class DataHandleUtil {
                 } else {
                     value = buff;
                 }
+                log.info(Bytes.toString(value));
                 contentRows.add(
                         // 上传文件内容表的row为 md5(文件名) + 切割编号
                         new HBaseRowKeyPOJO(Bytes.toBytes(row + (++fileNum)),
@@ -72,10 +72,10 @@ public class DataHandleUtil {
             HBaseInsertPOJO info = new HBaseInsertPOJO();
             info.setTableName(TableName.valueOf(UploadTable.INFO_TABLE_NAME));
             List<HBaseCellPOJO> infoCells = new ArrayList<>();
-            infoCells.add(new HBaseCellPOJO(UploadTable.INFO_FAMILY.getBytes(), UploadTable.INFO_QUALIFIER[0].getBytes(), fileName.getBytes()));
-            infoCells.add(new HBaseCellPOJO(UploadTable.INFO_FAMILY.getBytes(), UploadTable.INFO_QUALIFIER[1].getBytes(), fileType.getBytes()));
-            infoCells.add(new HBaseCellPOJO(UploadTable.INFO_FAMILY.getBytes(), UploadTable.INFO_QUALIFIER[2].getBytes(), Bytes.toBytes(fileNum)));
-            infoCells.add(new HBaseCellPOJO(UploadTable.INFO_FAMILY.getBytes(), UploadTable.INFO_QUALIFIER[3].getBytes(), Bytes.toBytes(multipartFile.getSize())));
+            infoCells.add(new HBaseCellPOJO(UploadTable.INFO_FAMILY.getBytes(), UploadTable.INFO_QUALIFIER[0].getBytes(), Bytes.toBytes(fileName)));
+            infoCells.add(new HBaseCellPOJO(UploadTable.INFO_FAMILY.getBytes(), UploadTable.INFO_QUALIFIER[1].getBytes(), Bytes.toBytes(fileType)));
+            infoCells.add(new HBaseCellPOJO(UploadTable.INFO_FAMILY.getBytes(), UploadTable.INFO_QUALIFIER[2].getBytes(), Bytes.toBytes(String.valueOf(fileNum))));
+            infoCells.add(new HBaseCellPOJO(UploadTable.INFO_FAMILY.getBytes(), UploadTable.INFO_QUALIFIER[3].getBytes(), Bytes.toBytes(String.valueOf(multipartFile.getSize()))));
             info.setRows(Collections.singletonList(new HBaseRowKeyPOJO(row.getBytes(), infoCells)));
 
             return Arrays.asList(content, info);

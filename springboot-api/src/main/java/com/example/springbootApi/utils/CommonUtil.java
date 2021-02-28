@@ -38,4 +38,8 @@ public class CommonUtil {
         return value;
     }
 
+    public static void main(String[] args) {
+        System.out.println(getMD5("RDBus.xmind"));
+    }
+
 }

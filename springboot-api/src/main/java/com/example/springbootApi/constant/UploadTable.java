@@ -13,7 +13,7 @@ public interface UploadTable {
     /** 存储上传文件内容的表对应的列族 */
     String FILE_FAMILY = "content";
 
-    /** 存储上传文件内容的表对应的列族元素 */
+    /** 存储上传文件内容的表对应的列族元素，默认数据类型为string */
     String FILE_QUALIFIER = "detail";
 
     /** 存储上传文件信息的维度表名 */
@@ -22,7 +22,7 @@ public interface UploadTable {
     /** 存储上传文件信息的维度表的列族 */
     String INFO_FAMILY = "info";
 
-    /** 存储上传文件信息的维度表的列族元素， rowSize表示上传文件被切分的数量 */
+    /** 存储上传文件信息的维度表的列族元素， rowSize表示上传文件被切分的数量，默认数据类型为string */
     String[] INFO_QUALIFIER = {"fileName", "type", "rowSize", "fileSize"};
 
     /** 文件每次切割的大小：100k */

@@ -22,6 +22,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.util.*;
 
@@ -316,7 +317,7 @@ public class HBaseService {
                         resultVO = insertData(insert);
                         if (!resultVO.isStatus()) {
                             // TODO 此处未处理文件内容插入成功，配置信息未插入成功的事务
-                            return resultVO;
+                            return ResultVO.success("文件上传成功");
                         }
                     }
                 } else {
@@ -328,70 +329,94 @@ public class HBaseService {
         return resultVO;
     }
 
+    /**
+     * 从上传文件信息表中获取文件信息
+     * @param fileName 文件名
+     * @param fileSize 文件切割数量
+     * @return
+     */
+    public List<HBaseRowKeyPO> getContent(String fileName, Integer fileSize) {
+        String row = CommonUtil.getMD5(fileName);
+        HBaseGetModel hBaseGetModel = new HBaseGetModel();
+        hBaseGetModel.setName(UploadTable.FILE_TABLE_NAME);
+        List<HBaseGetCellModel> cellModels = new ArrayList<>();
+        hBaseGetModel.setCells(cellModels);
+        for(int i = 1; i <= fileSize; i++) {
+            HBaseGetCellModel getCellModel = new HBaseGetCellModel();
+            getCellModel.setRow(row + i);
+            getCellModel.setFamily(UploadTable.FILE_FAMILY);
+            getCellModel.setQualifier(UploadTable.FILE_QUALIFIER);
+            cellModels.add(getCellModel);
+        }
+        ResultVO resultVO = getData(hBaseGetModel);
+        if(resultVO.isStatus()) {
+            HBaseTablePO tablePO = (HBaseTablePO) resultVO.getMessage();
+            if(tablePO.getRows().size() > 0) {
+                return tablePO.getRows();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 从上传文件信息表中获取文件信息
+     * @param fileName 文件名
+     * @return
+     */
+    public HBaseRowKeyPO getInfo(String fileName) {
+        HBaseGetModel hBaseGetModel = new HBaseGetModel();
+        hBaseGetModel.setName(UploadTable.INFO_TABLE_NAME);
+        HBaseGetCellModel getCellModel = new HBaseGetCellModel();
+        getCellModel.setRow(CommonUtil.getMD5(fileName));
+        hBaseGetModel.setCells(Collections.singletonList(getCellModel));
+        ResultVO resultVO = getData(hBaseGetModel);
+        if(resultVO.isStatus()) {
+            HBaseTablePO tablePO = (HBaseTablePO) resultVO.getMessage();
+            if(tablePO.getRows().size() > 0) {
+                return tablePO.getRows().get(0);
+            }
+        }
+        return null;
+    }
 
 
     /**
-     * 上传文件到hbase(将文件分割成固定大小的文本，多次存储到某个表中)
-     * @param filePath 文件路径
+     * 从hdfs中将上传的文件 下载到本地
+     * @param fileName 文件名
      * @throws IOException 异常
      */
-    public void upload(String filePath) throws IOException {
-        File file = new File(filePath);
-        int size = 1024;
-        // 接收数据的对象，多次读取时覆盖上一次的读取内容
-        byte[] buff = new byte[size];
-        int lg = -1;
-        // 读入文件流
-        BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
-
-        int i = 0;
-        // 一个文件块一个文件块地读StrMD5
-        while ((lg = in.read(buff)) != -1) {
-            byte[] value = new byte[lg];
-            // 当读取长度达不到预定长度，多出的长度内容为上一次读取的内容，须去除
-            if (lg != size) {
-                // 复制lg长度的内容到新临时数组
-                System.arraycopy(buff, 0, value, 0, lg);
-            } else {
-                value = buff;
+    public ResultVO download(String fileName, HttpServletResponse response) {
+        HBaseRowKeyPO hBaseRowKeyPO = getInfo(fileName);
+        if (hBaseRowKeyPO != null) {
+            // 设置强制下载不打开
+            response.setContentType("application/force-download");
+            // 设置文件名
+            response.addHeader("Content-Disposition", "attachment;fileName=" + fileName);
+            Integer fileSize = 0;
+            for (HBaseCellPO cellPO : hBaseRowKeyPO.getCells()) {
+                if(UploadTable.INFO_QUALIFIER[2].equals(cellPO.getQualifier())) {
+                    fileSize = Integer.valueOf(cellPO.getValue());
+                }
             }
 
-            List<Map<String, Object>> columns = new ArrayList<>();
-            Map<String, Object> column = new HashMap<>();
-            column.put("row", CommonUtil.getMD5(filePath) + (++i));
-            List<Map<String, String>> list = new ArrayList<>();
-            column.put("cell", list);
-            Map<String, String> cell = new HashMap<>();
-            cell.put("family", "info");
-            cell.put("qualifier", "base");
-            cell.put("value", Bytes.toString(value));
-            list.add(cell);
-            columns.add(column);
-//            insertData2("test3", columns);
+            try {
+                OutputStream os = response.getOutputStream();
+                List<HBaseRowKeyPO> list = getContent(fileName, fileSize);
+                for (HBaseRowKeyPO rowKeyPO : list) {
+                    for (HBaseCellPO cellPO : rowKeyPO.getCells()) {
+                        log.info(cellPO.getValue());
+                        os.write(cellPO.getValue().getBytes());
+                    }
+                }
+                return ResultVO.success("下载成功");
+            } catch (IOException e) {
+                log.error("下载失败", e);
+                return ResultVO.fail("下载失败, 错误信息： " + e.getMessage());
+            }
+        } else {
+            return ResultVO.fail("文件不存在");
         }
     }
-
-//    /**
-//     * 从hdfs中将上传的文件 下载到本地
-//     * @param filePath 下载路径
-//     * @param tableName 表名
-//     * @param rows row集合(上传文件时拆分开的所有row)
-//     * @param qualifier 需要获取的列名
-//     * @throws IOException 异常
-//     */
-//    public void download(String filePath, String tableName, List<String> rows, String qualifier) throws IOException {
-//        FileOutputStream fs = new FileOutputStream(filePath, true);
-//        List<Map<String, Object>> results = getData(tableName, rows);
-//        for (Map<String, Object> result : results) {
-//            List<Map<String, String>> cell = (List<Map<String, String>>) result.get("cell");
-//            for (Map<String, String> column : cell) {
-//                if (qualifier.equals(column.get("qualifier"))) {
-//                    log.info(column.get("value"));
-//                    fs.write(Bytes.toBytes(column.get("value")));
-//                }
-//            }
-//        }
-//    }
 
 
     public static void main(String[] args) throws IOException {
